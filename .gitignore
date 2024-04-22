@@ -1,0 +1,51 @@
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Environment variables file
+.env
+
+# Build output
+/build
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Compiled binary addons (like node-sass)
+/build/
+
+# Dependency directories
+/jspm_packages/
+/bower_components/
+
+
+
+# Coverage directory used by tools like istanbul
+/coverage
+
+# Yarn integrity file
+.yarn-integrity
+
+# System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
