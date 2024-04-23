@@ -16,7 +16,7 @@ function Signup() {
       .post("http://localhost:3001/register", { name, email, password })
 
       .then((res) => {
-        navigate('/login');
+        navigate('/');
       })
       .catch((err) => console.log(err));
   };
