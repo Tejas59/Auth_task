@@ -11,15 +11,15 @@ const app = express();
 app.use(express.json());
 
 app.use(cors({
-  origin: ["http://localhost:5173"],
-  methods: ["GET", "POST"],
-  credentials: true,
+    origin:["http://localhost:5173"],
+    methods:["GET", "post"],
+    credentials: true
 }));
 
 app.use(cookieParser());
 
 mongoose
-  .connect("mongodb://127.0.0.1:27017/auth_mern", {
+  .connect("mongodb://127.0.0.1:27017/auth_two", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -51,85 +51,85 @@ app.post("/register", (req, res) => {
     });
 });
 
-app.post("/login", async (req, res) => {
+app.post("/login", (req, res) => {
   const { email, password } = req.body;
-
-  try {
-    const user = await UserModel.findOne({ email: email });
-
+  UserModel.findOne({ email: email }).then((user) => {
     if (user) {
-      const isMatch = await bcrypt.compare(password, user.password);
-
-      if (isMatch) {
-        const token = jwt.sign({ email: user.email, role: user.role }, "jwt-secret-key", { expiresIn: '1d' });
-        res.cookie('token', token);
-        return res.json({ status: "success", role: user.role, name: user.name });
-      } else {
-        await updateLoginAttempts(email);
-        const isLocked = await checkAccountLock(email);
-        if (isLocked) {
-          console.error("Account is locked:", user.email);
-          return res.json({ status: "locked", message: "Account is locked due to multiple failed attempts.", lockedUntil: user.lockedUntil });
-        } else {
-          console.log("Account is not locked:", user.email);
-          return res.json({ status: "failed", message: "Incorrect password." });
-        }
+      if (user.lockedUntil && user.lockedUntil > Date.now()) {
+        // Account is locked
+        const remainingTime = new Date(user.lockedUntil - Date.now());
+        return res.status(403).json({
+          message: `Account is locked. Please try again after ${remainingTime.getHours()} hours, ${remainingTime.getMinutes()} minutes, and ${remainingTime.getSeconds()} seconds.`,
+        });
       }
+      bcrypt.compare(password, user.password, (err, response) => {
+        if (response) {
+          UserModel.findOneAndUpdate({ email }, { loginAttempts: 0 })
+            .then(() => {
+              const token = jwt.sign(
+                { email: user.email, role: user.role },
+                "jwt-secret-key",
+                { expiresIn: "1d" }
+              );
+              res.cookie("token", token);
+              return res.json({
+                status: "success",
+                role: user.role,
+                name: user.name,
+              });
+            })
+            .catch((err) => {
+              console.error("Error updating login attempts:", err);
+              return res.status(500).json({
+                error: "Internal server error",
+              });
+            });
+        } else {
+          UserModel.findOneAndUpdate(
+            { email },
+            { $inc: { loginAttempts: 1 }, lastLoginAttempt: Date.now() },
+            { new: true }
+          )
+            .then((updatedUser) => {
+              if (updatedUser.loginAttempts >= 5) {
+                const lockExpiry = new Date(
+                  Date.now() + 24 * 60 * 60 * 1000
+                ); 
+                UserModel.findOneAndUpdate(
+                  { email },
+                  { lockedUntil: lockExpiry }
+                )
+                  .then(() => {
+                    return res.status(403).json({
+                      message: "Account locked, please try again later.",
+                    });
+                  })
+                  .catch((err) => {
+                    console.error("Error locking account:", err);
+                    return res.status(500).json({
+                      error: "Internal server error",
+                    });
+                  });
+              } else {
+                return res.json("The password is incorrect");
+              }
+            })
+            .catch((err) => {
+              console.error("Error updating login attempts:", err);
+              return res.status(500).json({
+                error: "Internal server error",
+              });
+            });
+        }
+      });
     } else {
-      return res.json({ status: "failed", message: "No account found with that email." });
+      return res.json("No record existed");
     }
-  } catch (err) {
-    console.error("Error logging in:", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
+  });
 });
 
-const updateLoginAttempts = async (email) => {
-  try {
-    const now = new Date();
-    const twelveHoursAgo = now.getTime() - (12 * 60 * 60 * 1000); // Calculate 12 hours in milliseconds
-
-    const user = await UserModel.findOneAndUpdate(
-      { email },
-      {
-        $inc: { loginAttempts: 1 },
-        $set: { lastLoginAttempt: now },
-      },
-      { new: true } 
-    );
-
-    if (user.loginAttempts > 5 && user.lastLoginAttempt.getTime() > twelveHoursAgo) {
-      await UserModel.findOneAndUpdate({ email }, { lockedUntil: new Date(now.getTime() + (24 * 60 * 60 * 1000)) }); // Lock for 24 hours
-    }
-  } catch (err) {
-    console.error("Error updating login attempts:", err);
-  }
-};
-
-
-    
-const checkAccountLock = async (email) => {
-    try {
-      const now = new Date();
-      const user = await UserModel.findOne({ email });
   
-      if (user && user.lockedUntil) {
-        return user.lockedUntil.getTime() > now.getTime(); 
-      } else if (user && user.loginAttempts >= 5 && user.lastLoginAttempt) {
-        const twelveHoursAgo = now.getTime() - (12 * 60 * 60 * 1000); 
-        return user.lastLoginAttempt.getTime() > twelveHoursAgo; 
-      } else {
-        return false; 
-      }
-    } catch (err) {
-      console.error("Error checking account lock:", err);
-      return false; 
-    }
-  };
-    
-    
-    const PORT = process.env.PORT || 3001;
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
-    
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});

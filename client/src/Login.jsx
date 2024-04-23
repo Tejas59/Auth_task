@@ -8,11 +8,11 @@ const Login = () => {
   const navigate = useNavigate();
 
   const [loginAttempts, setLoginAttempts] = useState(0); 
-  const [isAccountLocked, setIsAccountLocked] = useState(false); 
+  const [isAccountLocked, setIsAccountLocked] = useState(false);
   const [lockedUntil, setLockedUntil] = useState(null); 
+  const [loginError, setLoginError] = useState(null); // State to store login error message
 
   useEffect(() => {
-  
     const storedLockedUntil = localStorage.getItem('lockedUntil');
     if (storedLockedUntil) {
       const now = new Date();
@@ -23,6 +23,7 @@ const Login = () => {
       }
     }
   }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -31,14 +32,14 @@ const Login = () => {
       if (now >= lockedUntil) {
         setIsAccountLocked(false);
         setLockedUntil(null);
-        setLoginAttempts(0); 
+        setLoginAttempts(0); // Reset attempts after lock expiry
       } else {
         alert("Your account is locked due to multiple failed login attempts. Please try again later.");
         return;
       }
     }
 
-    setLoginAttempts(loginAttempts + 1);
+    setLoginAttempts(loginAttempts + 1); // Increment login attempts
 
     try {
       const { data } = await axios.post("http://localhost:3001/login", {
@@ -54,20 +55,33 @@ const Login = () => {
         setLockedUntil(new Date(data.lockedUntil)); 
         alert("Your account is locked due to multiple failed login attempts. Please try again later.");
       } else {
+        // Display error message for incorrect password
+        setLoginError("Incorrect email or password. Please try again.");
         console.log("Login failed:", data.message); 
       }
     } catch (err) {
+      // Handle 403 Forbidden error
+      if (err.response && err.response.status === 403) {
+        setLoginError("Your account is locked due to multiple failed login attempts. Please try again later.");
+      } else {
+        setLoginError("An unexpected error occurred. Please try again later.");
+      }
       console.error("Error logging in:", err);
     }
   };
 
   return (
-    <div className="d-flex justify-content-center align-items-center bg-secondary vh-100">
+    <div className="d-flex justify-content-center align-items-center bg-info vh-100">
       <div className="bg-white p-3 rounded w-25">
         <h2>Login</h2>
-        {isAccountLocked && (
+        {isAccountLocked && ( // Display alert only if account is locked
           <div className="alert alert-danger" role="alert">
             Your account is locked. Please try again later.
+          </div>
+        )}
+        {loginError && ( // Display login error message
+          <div className="alert alert-danger" role="alert">
+            {loginError}
           </div>
         )}
         <form onSubmit={handleSubmit}>
