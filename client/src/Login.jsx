@@ -42,14 +42,14 @@ const Login = () => {
     setLoginAttempts(loginAttempts + 1); // Increment login attempts
 
     try {
-      const { data } = await axios.post("http://localhost:3001/login", {
+      const { data } = await axios.post("http://localhost:3001/", {
         email,
         password,
       });
 
       if (data.status === "success") {
         localStorage.setItem('name', data.name);
-        navigate('/');
+        navigate('/home');
       } else if (data.status === "locked") {
         setIsAccountLocked(true);
         setLockedUntil(new Date(data.lockedUntil)); 

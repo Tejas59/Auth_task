@@ -72,7 +72,7 @@ function Signup() {
             Register
           </button>
           <p>Alerady have an account</p>
-          <Link to='/login' className="btn btn-light w-100 rounded-0">
+          <Link to='/' className="btn btn-light w-100 rounded-0">
             Login
           </Link>
         </form>
